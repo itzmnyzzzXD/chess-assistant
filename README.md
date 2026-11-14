@@ -17,7 +17,7 @@ Two engines to pick from. Stockfish 18 is statically linked with its NNUE nets e
 - Selected gambit lines are followed only while the recorded game history matches the exact UCI move prefix; the engine resumes normal analysis as soon as the game leaves the line
 - Centipawn or win percentage on the floating button
 - Move Analysis grades every move you play from Brilliant to Blunder, tracks accuracy, and shows the full breakdown in the settings panel
-- Optional move execution for offline practice and puzzle workflows. Use it only where automated assistance is permitted; do not use real-time assistance in competitive games where it is prohibited.
+- Optional automated move execution for practice and test environments where it is explicitly allowed. Keep it off in rated or competitive games where assistance is prohibited.
 - Long-press the floating ♟ button to pause or resume the assistant right away
 - Live detection of about 40 openings, including the Ruy Lopez, Najdorf, Caro-Kann and Queen's Gambit, shown in the panel
 - One tap copies the current FEN to your clipboard
@@ -49,8 +49,8 @@ Download a compatible IPA from the [releases page](https://github.com/itzmnyzzzX
 
 1. Open Chess.com and start any game.
 2. Tap the floating ♟ button to open the settings panel. Long-press it to pause or resume instantly.
-3. Set your ELO and turn on Maia, Auto Play or Move Analysis as you like. The ⚡ button applies the study preset.
-4. Arrows appear on the board when it's your turn. With Auto Play on, the move gets played for you.
+3. Set your strength, choose Stockfish or Maia, and configure the display and move review. Use automated move execution only in environments that explicitly permit it. The ⚡ button applies the study preset.
+4. Candidate arrows and evaluations appear on the board when a position is ready for analysis.
 
 Debug Log in the panel shows recent events such as FEN detection, engine responses and which hooks installed. FEN copies the current position.
 

@@ -43,7 +43,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p "layout/Library/Application Support/Chess"
-          gh release download maia-model --repo "${{ github.repository }}" --pattern "maia3_5m.mlpackage.zip" --output model.zip
+          gh release download maia-model --repo "epic0001/chess-assistant" --pattern "maia3_5m.mlpackage.zip" --output model.zip
           unzip -q model.zip -d "layout/Library/Application Support/Chess"
           chmod -R a+rX "layout/Library/Application Support/Chess"
           find "layout/Library/Application Support/Chess" -maxdepth 2 -print
@@ -63,16 +63,25 @@ jobs:
         env:
           THEOS: ${{ github.workspace }}/theos
 
-      - name: Publish .deb as release
+      - name: Publish .deb releases
         if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          DEB=$(ls packages/*.deb | head -1)
+          DEB=$(find packages -maxdepth 1 -name '*.deb' -print -quit)
+          test -n "$DEB" || { echo "::error::Theos did not produce a .deb"; exit 1; }
           echo "built: $DEB"
-          gh release delete latest --yes --cleanup-tag || true
-          gh release create latest "$DEB" \
-            --title "Chess Assistant (rolling build)" \
-            --notes "Rolling dev build. Use the tagged release for a stable download." \
+
+          gh release delete latest --yes --cleanup-tag --repo "$GITHUB_REPOSITORY" || true
+          gh release create latest "$DEB" --repo "$GITHUB_REPOSITORY" \
+            --title "Chess Assistant 2.6.0 (rolling build)" \
+            --notes "Automatically built package for the v2.6.0 IPA pipeline." \
             --prerelease
-          gh release upload v2.6.0 "$DEB" --clobber || true
+
+          if gh release view v2.6.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload v2.6.0 "$DEB" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create v2.6.0 "$DEB" --repo "$GITHUB_REPOSITORY" \
+              --title "Chess Assistant v2.6.0" \
+              --notes "Stockfish 18, Maia 3 and the expanded gambit repertoire."
+          fi

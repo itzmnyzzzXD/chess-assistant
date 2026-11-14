@@ -8,57 +8,77 @@ on:
         required: true
         type: string
       label:
-        description: "Label for the output filename (e.g. ios16, ios17)"
+        description: "Output label (e.g. ios16, ios17)"
         required: true
         default: "ios17"
         type: string
+  workflow_run:
+    workflows: ["Build Chess Assistant"]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: write
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success')
     runs-on: macos-latest
+    env:
+      IPA_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.ipa_url || 'https://www.dropbox.com/scl/fi/9844wpi100xd57x9ea3dr/com.chess.iphone-4.10.22-eeveedecrypter.ipa?rlkey=3n7cxwkaa2cafwf76b9mlz4j6&st=t4bpw7f5&dl=1' }}
+      IPA_LABEL: ${{ github.event_name == 'workflow_dispatch' && inputs.label || 'ios17' }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download decrypted IPA
+      - name: Download and validate clean Chess.com IPA
         run: |
-          curl -fL --retry 3 -o chess.ipa "${{ inputs.ipa_url }}"
+          curl -fL --retry 3 --retry-delay 2 -o chess.ipa "$IPA_URL"
           [ -s chess.ipa ] || { echo "::error::downloaded IPA is empty"; exit 1; }
-
-      - name: Read Chess version + set output name
-        run: |
-          unzip -qq chess.ipa -d _ver
-          PLIST="$(find _ver/Payload -maxdepth 2 -name Info.plist | head -1)"
-          VER="$(plutil -extract CFBundleShortVersionString raw -o - "$PLIST" 2>/dev/null || echo unknown)"
-          rm -rf _ver
+          unzip -tq chess.ipa >/dev/null
+          unzip -qq chess.ipa -d _input
+          PLIST="$(find _input/Payload -maxdepth 2 -name Info.plist | head -1)"
+          [ -n "$PLIST" ] || { echo "::error::No app Info.plist found in IPA"; exit 1; }
+          BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PLIST")"
+          [ "$BUNDLE_ID" = "com.chess.iphone" ] || { echo "::error::Unexpected app bundle ID: $BUNDLE_ID"; exit 1; }
+          VER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST" 2>/dev/null || echo unknown)"
+          rm -rf _input
           echo "CHESS_VER=$VER" >> "$GITHUB_ENV"
-          echo "OUT=ChessAssistant_v2.6.0_Chess${VER}_${{ inputs.label }}.ipa" >> "$GITHUB_ENV"
-          echo "output: ChessAssistant_v2.6.0_Chess${VER}_${{ inputs.label }}.ipa"
+          echo "OUT=ChessAssistant_v2.6.0_Chess${VER}_${IPA_LABEL}.ipa" >> "$GITHUB_ENV"
+          echo "Validated Chess.com bundle: $BUNDLE_ID ($VER)"
 
       - name: Download Chess Assistant .deb
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release download latest --repo "$GITHUB_REPOSITORY" --pattern '*.deb' --dir . --clobber
-          mv com.chess.assistant_*.deb chess-assistant.deb
-          ls -la chess-assistant.deb
+          DEB="$(find . -maxdepth 1 -name '*.deb' -print -quit)"
+          [ -n "$DEB" ] || { echo "::error::No .deb found in latest release"; exit 1; }
+          mv "$DEB" chess-assistant.deb
+          ls -lh chess-assistant.deb
 
       - name: Install cyan
         run: |
           brew install ldid
           pipx install --force https://github.com/asdfzxcvbn/pyzule-rw/archive/main.zip
 
-      - name: Inject tweak into IPA
+      - name: Inject v2.6.0 tweak into Chess.com IPA
         run: |
           cyan -i chess.ipa -o "$OUT" \
                -uwef chess-assistant.deb -n "Chess" -b com.chess.iphone
-          ls -la "$OUT"
+          test -s "$OUT"
+          unzip -tq "$OUT" >/dev/null
+          mkdir -p _output
+          unzip -qq "$OUT" -d _output
+          APP_PLIST="$(find _output/Payload -maxdepth 2 -name Info.plist | head -1)"
+          OUT_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PLIST")"
+          [ "$OUT_BUNDLE_ID" = "com.chess.iphone" ] || { echo "::error::Output bundle ID changed: $OUT_BUNDLE_ID"; exit 1; }
+          find _output/Payload -name 'Chess.dylib' -print -quit | grep -q . || { echo "::error::Chess.dylib missing from packaged IPA"; exit 1; }
+          shasum -a 256 "$OUT"
+          ls -lh "$OUT"
 
-      - name: Publish IPA to release
+      - name: Publish IPA to latest and v2.6.0 releases
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release upload latest "$OUT" --repo "$GITHUB_REPOSITORY" --clobber
-          gh release upload v2.6.0 "$OUT" --repo "$GITHUB_REPOSITORY" --clobber || true
+          gh release upload v2.6.0 "$OUT" --repo "$GITHUB_REPOSITORY" --clobber

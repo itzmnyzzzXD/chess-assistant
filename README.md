@@ -6,7 +6,9 @@ Everything runs locally on the device. No network requests, and no move data lea
 
 ## Features
 
-Two engines to pick from. Stockfish 18 is statically linked with its NNUE nets embedded, and always goes for the strongest move. Maia 3 runs as a CoreML model and instead plays what a human around 1300 to 1900 ELO would play.
+> Current development version: **2.6.0**.
+
+Two engines to pick from. Stockfish 18 is statically linked with its NNUE nets embedded and searches strong candidate moves at the selected strength. Maia 3 runs as a Core ML model and selects moves in a human-like style, with configurable skill levels.
 
 - ELO slider from 400 to 3500, mapped to search depth plus skill level and UCI_LimitStrength
 - Up to 3 candidate arrows, each labeled with its own evaluation
@@ -21,7 +23,7 @@ Two engines to pick from. Stockfish 18 is statically linked with its NNUE nets e
 - One tap copies the current FEN to your clipboard
 - Accuracy stats, move grades and opening tracking reset when a game ends, detected on-device from checkmate or stalemate
 - Arrow styling: color by eval or solid green, thin to thick shafts, adjustable opacity
-- A ⚡ button that applies safer settings in one tap (ELO 1000, Maia on, Auto Play off)
+- A ⚡ button that applies study defaults in one tap (ELO 1000, Maia on, Auto Play off)
 
 The Alien Gambit entry is the Caro-Kann line 1.e4 c6 2.d4 d5 3.Nd2 dxe4 4.Nxe4 Nf6 5.Ng5 h6 6.Nxf7. It is an aggressive practical surprise, not a sound opening recommendation; the repertoire picker labels that risk rather than presenting it as a forced win.
 
@@ -47,7 +49,7 @@ Download a compatible IPA from the [releases page](https://github.com/itzmnyzzzX
 
 1. Open Chess.com and start any game.
 2. Tap the floating ♟ button to open the settings panel. Long-press it to pause or resume instantly.
-3. Set your ELO and turn on Maia, Auto Play or Move Analysis as you like. The ⚡ button applies safer settings for you.
+3. Set your ELO and turn on Maia, Auto Play or Move Analysis as you like. The ⚡ button applies the study preset.
 4. Arrows appear on the board when it's your turn. With Auto Play on, the move gets played for you.
 
 Debug Log in the panel shows recent events such as FEN detection, engine responses and which hooks installed. FEN copies the current position.

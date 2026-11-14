@@ -191,7 +191,7 @@ static NSArray<NSDictionary *> *gambitLibrary(void) {
     dispatch_once(&once, ^{
         items = @[
             @{@"name": @"Off", @"side": @"Both", @"detail": @"Use engine analysis without an opening line.", @"moves": @[]},
-            @{@"name": @"Alien Gambit", @"side": @"White", @"detail": @"Caro-Kann · sharp knight sacrifice · objectively unsound.", @"moves": @[@"e2e4",@"c7c6",@"d2d4",@"d7d5",@"b1d2",@"d5e4",@"d2e4",@"g8f6",@"e4g5",@"h7h6",@"g5f7",@"e8f7",@"g1f3",@"c7c5"]},
+            @{@"name": @"Alien Gambit", @"side": @"White", @"detail": @"Caro-Kann · sharp knight sacrifice · objectively unsound.", @"moves": @[@"e2e4",@"c7c6",@"d2d4",@"d7d5",@"b1d2",@"d5e4",@"d2e4",@"g8f6",@"e4g5",@"h7h6",@"g5f7",@"e8f7",@"g1f3",@"c6c5"]},
             @{@"name": @"King's Gambit", @"side": @"White", @"detail": @"Open Game · rapid development and kingside initiative.", @"moves": @[@"e2e4",@"e7e5",@"f2f4",@"e5f4",@"g1f3",@"g7g5",@"h2h4",@"g5g4",@"f3e5"]},
             @{@"name": @"Evans Gambit", @"side": @"White", @"detail": @"Italian Game · pawn offer for quick development.", @"moves": @[@"e2e4",@"e7e5",@"g1f3",@"b8c6",@"f1c4",@"f8c5",@"b2b4",@"c5b4",@"c2c3",@"b4a5"]},
             @{@"name": @"Danish Gambit", @"side": @"White", @"detail": @"Open Game · sacrifices one or two pawns for open lines.", @"moves": @[@"e2e4",@"e7e5",@"d2d4",@"e5d4",@"c2c3",@"d4c3",@"f1c4"]},
@@ -217,7 +217,7 @@ static NSDictionary *selectedGambitEntry(void) {
 static NSString *nextGambitBookMove(void) {
     NSDictionary *entry = selectedGambitEntry();
     NSArray *line = entry[@"moves"];
-    if (![line isKindOfClass:[NSArray class]] || line.count == 0 || !gUciSeq.length) return nil;
+    if (![line isKindOfClass:[NSArray class]] || line.count == 0 || !gUciSeq || !gPgnStartFen.length) return nil;
 
     NSString *startpos = @"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     if (![gPgnStartFen isEqualToString:startpos]) return nil;
@@ -1103,8 +1103,9 @@ static void showGambitMenu(void) {
 
     for (NSDictionary *entry in gambitLibrary()) {
         NSString *name = entry[@"name"];
-        NSString *title = [NSString stringWithFormat:@"%@%@",
-                           name, [name isEqualToString:active[@"name"]] ? @"  ✓" : @""];
+        NSString *side = entry[@"side"] ?: @"Both";
+        NSString *title = [NSString stringWithFormat:@"%@ · %@%@",
+                           name, side, [name isEqualToString:active[@"name"]] ? @"  ✓" : @""];
         [ac addAction:[UIAlertAction actionWithTitle:title
             style:UIAlertActionStyleDefault
             handler:^(UIAlertAction *_) {

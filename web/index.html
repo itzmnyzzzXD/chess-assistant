@@ -1,114 +1,573 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Chess Assistant</title>
-<style>
-:root {
-  --bg: #0e1116;
-  --panel: #161b22;
-  --panel-2: #1c232d;
-  --border: #262d38;
-  --text: #e6e9ef;
-  --dim: #8b95a5;
-  --accent: #7dd35f;
-  --accent-ink: #0e1116;
-  --board-l: #ebecd0;
-  --board-d: #6f9b52;
-  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  --sans: -apple-system, "Segoe UI", system-ui, sans-serif;
-}
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f4f5f0; --panel: #ffffff; --panel-2: #f0f1ea; --border: #dcdfd4;
-    --text: #1a1d22; --dim: #5c6472; --accent: #4f8a34; --accent-ink: #ffffff;
-  }
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--text); font-family: var(--sans); line-height: 1.6; -webkit-font-smoothing: antialiased; }
-a { color: inherit; }
-.wrap { max-width: 880px; margin: 0 auto; padding: 0 20px; }
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111612">
+  <meta name="description" content="Chess Assistant is a local iOS chess study overlay powered by Stockfish 18 and Maia 3, with opening repertoires and faster search profiles.">
+  <title>Chess Assistant — Local chess analysis for iOS</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111612;
+      --surface: #19211b;
+      --surface-raised: #202a23;
+      --line: #354138;
+      --text: #f3f5ee;
+      --muted: #b4beb4;
+      --muted-strong: #d0d7ce;
+      --accent: #c6f17a;
+      --accent-ink: #172012;
+      --board-light: #dce4c7;
+      --board-dark: #63864d;
+      --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --radius: 22px;
+      --max: 1160px;
+    }
 
-.hero { padding: 72px 0 40px; text-align: center; }
-.logo { width: 96px; height: 96px; margin: 0 auto 24px; border-radius: 22px; overflow: hidden;
-  display: grid; grid-template-columns: repeat(4,1fr); grid-template-rows: repeat(4,1fr);
-  box-shadow: 0 12px 40px rgba(0,0,0,.35); border: 1px solid var(--border); }
-.logo i { display: block; }
-.logo i:nth-child(odd) { background: var(--board-l); }
-.logo i:nth-child(even) { background: var(--board-d); }
-.piece { position: relative; margin-top: -84px; font-size: 52px; line-height: 1; filter: drop-shadow(0 6px 10px rgba(0,0,0,.4)); }
-h1 { font-size: 40px; font-weight: 700; letter-spacing: -.02em; margin: 40px 0 10px; }
-.tag { color: var(--dim); font-size: 17px; max-width: 540px; margin: 0 auto 28px; }
-.pill { display: inline-block; font-family: var(--mono); font-size: 12px; color: var(--accent);
-  border: 1px solid var(--border); background: var(--panel); padding: 4px 10px; border-radius: 999px; margin-bottom: 20px; }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background:
+        radial-gradient(ellipse at 82% 3%, rgba(111, 145, 77, .13), transparent 31rem),
+        var(--bg);
+      color: var(--text);
+      font: 16px/1.6 var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    a:focus-visible, button:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 4px;
+      border-radius: 8px;
+    }
+    .shell { width: min(var(--max), calc(100% - 48px)); margin: 0 auto; }
+    .mono { font-family: var(--mono); }
+    .topbar {
+      min-height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      border-bottom: 1px solid rgba(180, 190, 180, .15);
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      min-height: 48px;
+    }
+    .brand-mark {
+      display: grid;
+      grid-template-columns: repeat(3, 9px);
+      grid-template-rows: repeat(3, 9px);
+      gap: 2px;
+      padding: 7px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+    }
+    .brand-mark span:nth-child(odd) { background: var(--board-light); }
+    .brand-mark span:nth-child(even) { background: var(--board-dark); }
+    .brand-name { font-size: 14px; font-weight: 700; letter-spacing: -.02em; }
+    .brand-sub { display: block; color: var(--muted); font: 10px/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+    .nav { display: flex; align-items: center; gap: 26px; }
+    .nav a {
+      color: var(--muted-strong);
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+    }
+    .nav a:hover { color: var(--accent); }
+    .nav .nav-cta {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 999px;
+      padding: 0 17px;
+      color: var(--text);
+    }
 
-.cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 8px; }
-.btn { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px;
-  padding: 12px 20px; border-radius: 12px; text-decoration: none; border: 1px solid var(--border); transition: transform .08s ease; }
-.btn:active { transform: translateY(1px); }
-.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
-.btn.ghost { background: var(--panel); color: var(--text); }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.04fr) minmax(340px, .96fr);
+      align-items: center;
+      gap: clamp(40px, 7vw, 92px);
+      padding: clamp(62px, 9vw, 112px) 0 82px;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--accent);
+      font: 11px/1.4 var(--mono);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(198, 241, 122, .12);
+    }
+    h1 {
+      margin: 22px 0 20px;
+      max-width: 650px;
+      font-size: clamp(44px, 6.1vw, 76px);
+      line-height: .99;
+      letter-spacing: -.065em;
+      font-weight: 760;
+    }
+    h1 span { color: var(--accent); }
+    .hero-copy {
+      max-width: 570px;
+      margin: 0;
+      color: var(--muted-strong);
+      font-size: clamp(16px, 1.5vw, 18px);
+      line-height: 1.75;
+    }
+    .hero-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+    .button {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 48px;
+      padding: 0 20px;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      background: var(--accent);
+      color: var(--accent-ink);
+      font-size: 14px;
+      font-weight: 750;
+      text-decoration: none;
+      transition: transform .16s ease, background .16s ease;
+    }
+    .button:hover { transform: translateY(-2px); background: #d5f89a; }
+    .button.secondary {
+      border-color: var(--line);
+      background: var(--surface);
+      color: var(--text);
+    }
+    .button.secondary:hover { background: var(--surface-raised); }
+    .hero-note { margin-top: 17px; color: var(--muted); font-size: 12px; }
 
-.section { padding: 40px 0; }
-.section h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); margin-bottom: 18px; }
+    .preview {
+      position: relative;
+      padding: 17px;
+      border: 1px solid #3b493e;
+      border-radius: 26px;
+      background: linear-gradient(150deg, #202b23, #171e19 75%);
+      box-shadow: 0 32px 90px rgba(0, 0, 0, .32);
+    }
+    .preview-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 2px 15px;
+      color: var(--muted-strong);
+      font: 10px var(--mono);
+      letter-spacing: .08em;
+    }
+    .ready { display: inline-flex; align-items: center; gap: 7px; color: var(--accent); }
+    .ready::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .board-frame {
+      display: grid;
+      grid-template-columns: 16px 1fr;
+      gap: 7px;
+      align-items: stretch;
+    }
+    .rank-labels { display: grid; grid-template-rows: repeat(8, 1fr); color: #b9c6ae; font: 10px var(--mono); text-align: center; align-items: center; }
+    .board {
+      position: relative;
+      aspect-ratio: 1;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 5px;
+      background: var(--board-light);
+    }
+    .sq { display: grid; place-items: center; position: relative; font-size: clamp(17px, 2.5vw, 27px); line-height: 1; }
+    .sq.dark { background: var(--board-dark); }
+    .sq.light { background: var(--board-light); }
+    .piece-white { color: #f9f8eb; text-shadow: 0 1px 1px #26301e, 0 2px 3px #26301e; }
+    .piece-black { color: #202a20; text-shadow: 0 1px 0 rgba(255,255,255,.15); }
+    .sq.last::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(198, 241, 122, .23);
+      pointer-events: none;
+    }
+    .board svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .files { display: grid; grid-template-columns: repeat(8, 1fr); margin: 5px 0 0 23px; color: #b9c6ae; font: 10px var(--mono); text-align: center; }
+    .engine-readout {
+      margin-top: 15px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 15px;
+      background: rgba(10, 14, 11, .42);
+      border: 1px solid rgba(180, 190, 180, .16);
+      border-radius: 14px;
+    }
+    .engine-readout small { display: block; color: var(--muted); font: 10px var(--mono); letter-spacing: .08em; }
+    .engine-readout strong { display: block; margin-top: 3px; font-size: 14px; }
+    .eval { color: var(--accent); font: 700 21px var(--mono); }
+    .move-strip { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .move {
+      min-width: 64px;
+      padding: 7px 9px;
+      border: 1px solid rgba(180, 190, 180, .17);
+      border-radius: 9px;
+      background: rgba(255,255,255,.035);
+      color: var(--muted-strong);
+      text-align: center;
+      font: 11px var(--mono);
+    }
+    .move b { color: var(--accent); font-weight: 700; }
 
-.steps { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 8px 4px; }
-.step { display: flex; gap: 14px; padding: 14px 18px; align-items: flex-start; }
-.step + .step { border-top: 1px solid var(--border); }
-.step .n { font-family: var(--mono); font-size: 12px; color: var(--accent-ink); background: var(--accent);
-  width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; flex-shrink: 0; font-weight: 700; }
-.step div p { color: var(--dim); font-size: 14px; }
-.step code { font-family: var(--mono); font-size: 12.5px; background: var(--panel-2); padding: 2px 6px; border-radius: 5px; color: var(--accent); }
-.repo-url { font-family: var(--mono); font-size: 13px; background: var(--panel-2); border: 1px solid var(--border);
-  border-radius: 10px; padding: 12px 14px; margin-top: 10px; word-break: break-all; display: flex; justify-content: space-between; gap: 10px; align-items: center; }
-.copy { cursor: pointer; border: 1px solid var(--border); background: var(--panel); color: var(--text);
-  font-family: var(--mono); font-size: 12px; padding: 4px 10px; border-radius: 7px; flex-shrink: 0; }
+    .trust-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .trust-item { padding: 22px 20px; border-right: 1px solid var(--line); }
+    .trust-item:first-child { padding-left: 0; }
+    .trust-item:last-child { border: 0; }
+    .trust-item strong { display: block; font-size: 15px; }
+    .trust-item span { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
 
-footer { color: var(--dim); font-size: 13px; text-align: center; padding: 40px 0 60px; border-top: 1px solid var(--border); margin-top: 24px; }
-footer a { color: var(--accent); text-decoration: none; }
-.warn { font-size: 12.5px; color: var(--dim); margin-top: 14px; }
-</style>
+    section.content { padding: 94px 0; }
+    .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 26px; margin-bottom: 30px; }
+    .section-heading .kicker { color: var(--accent); font: 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+    h2 { margin: 9px 0 0; font-size: clamp(29px, 4vw, 42px); line-height: 1.1; letter-spacing: -.045em; }
+    .section-heading p { max-width: 390px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.7; }
+    .feature-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .feature {
+      min-height: 218px;
+      padding: 23px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--surface);
+    }
+    .feature-index { color: var(--accent); font: 11px var(--mono); }
+    .feature h3 { margin: 30px 0 9px; font-size: 17px; letter-spacing: -.02em; }
+    .feature p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+
+    .gambit-section {
+      display: grid;
+      grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr);
+      gap: 64px;
+      align-items: start;
+      padding: 34px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: var(--surface);
+    }
+    .gambit-intro p { max-width: 400px; color: var(--muted); font-size: 14px; line-height: 1.8; }
+    .gambit-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .gambit-pill {
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: #141b16;
+    }
+    .gambit-pill strong { display: block; font-size: 13px; }
+    .gambit-pill span { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+    .gambit-warning {
+      grid-column: 1 / -1;
+      padding: 14px 16px;
+      border-left: 3px solid #e1ba6e;
+      background: rgba(225, 186, 110, .08);
+      color: #e7d5b1;
+      font-size: 12px;
+      line-height: 1.65;
+    }
+
+    .install-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .install-card { padding: 26px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+    .install-card .tag { color: var(--accent); font: 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+    .install-card h3 { margin: 8px 0; font-size: 19px; }
+    .install-card p { min-height: 48px; color: var(--muted); font-size: 13px; }
+    .source-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #111712;
+      font: 11px/1.5 var(--mono);
+      overflow-wrap: anywhere;
+    }
+    .copy-button {
+      flex: 0 0 auto;
+      min-width: 68px;
+      min-height: 40px;
+      padding: 0 10px;
+      border: 1px solid #52614f;
+      border-radius: 8px;
+      background: #28352a;
+      color: var(--text);
+      font: 11px var(--mono);
+      cursor: pointer;
+    }
+    .copy-button:hover { background: #344534; }
+    .install-card .button { margin-top: 8px; }
+    .steps { padding-left: 18px; color: var(--muted-strong); font-size: 13px; }
+    .steps li { padding: 4px 0; }
+    .steps li::marker { color: var(--accent); }
+
+    .notice {
+      margin-top: 20px;
+      padding: 16px 18px;
+      border: 1px solid #554a35;
+      border-radius: 14px;
+      background: rgba(225, 186, 110, .07);
+      color: #e7d9bf;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+    footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 30px 0 42px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+    }
+    footer a { color: var(--muted-strong); text-decoration: none; }
+    footer a:hover { color: var(--accent); }
+
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: minmax(0, 1fr) minmax(300px, .9fr); gap: 34px; }
+      .feature-grid { grid-template-columns: repeat(2, 1fr); }
+      .gambit-section { gap: 28px; }
+    }
+    @media (max-width: 680px) {
+      .shell { width: min(100% - 32px, var(--max)); }
+      .topbar { min-height: 68px; }
+      .nav { gap: 12px; }
+      .nav a:not(.nav-cta) { display: none; }
+      .hero { grid-template-columns: 1fr; padding: 58px 0 54px; gap: 36px; }
+      h1 { max-width: 540px; font-size: clamp(45px, 13vw, 64px); }
+      .preview { max-width: 440px; width: 100%; margin: 0 auto; }
+      .trust-row { grid-template-columns: 1fr; }
+      .trust-item, .trust-item:first-child { padding: 16px 0; border-right: 0; border-bottom: 1px solid var(--line); }
+      .trust-item:last-child { border-bottom: 0; }
+      section.content { padding: 68px 0; }
+      .section-heading { display: block; }
+      .section-heading p { margin-top: 13px; }
+      .feature-grid { grid-template-columns: 1fr 1fr; gap: 9px; }
+      .feature { min-height: 205px; padding: 17px; }
+      .feature h3 { margin-top: 22px; font-size: 15px; }
+      .feature p { font-size: 12px; }
+      .gambit-section { grid-template-columns: 1fr; padding: 23px; gap: 16px; }
+      .gambit-list { gap: 7px; }
+      .gambit-pill { padding: 10px; }
+      .install-grid { grid-template-columns: 1fr; }
+      .install-card p { min-height: 0; }
+      footer { align-items: flex-start; flex-direction: column; }
+    }
+    @media (max-width: 380px) {
+      .feature-grid { grid-template-columns: 1fr; }
+      .gambit-list { grid-template-columns: 1fr; }
+      .hero-actions .button { width: 100%; }
+      .source-box { align-items: stretch; flex-direction: column; }
+      .copy-button { width: 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+  </style>
 </head>
 <body>
-<div class="wrap">
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Chess Assistant home">
+        <span class="brand-mark" aria-hidden="true">
+          <span></span><span></span><span></span>
+          <span></span><span></span><span></span>
+          <span></span><span></span><span></span>
+        </span>
+        <span><span class="brand-name">Chess Assistant</span><span class="brand-sub">Local analysis · iOS</span></span>
+      </a>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="#features">Features</a>
+        <a href="#repertoire">Repertoire</a>
+        <a href="#install">Install</a>
+        <a class="nav-cta" href="https://github.com/itzmnyzzzXD/chess-assistant">View source ↗</a>
+      </nav>
+    </header>
 
-  <header class="hero">
-    <div class="logo"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-    <div class="piece">&#9822;</div>
-    <div class="pill">v2.5.2 &middot; Stockfish&nbsp;18 + Maia&nbsp;3</div>
-    <h1>Chess Assistant</h1>
-    <p class="tag">On-device move suggestions for Chess.com &mdash; best moves from Stockfish, or human-like moves from the Maia&nbsp;3 neural engine, drawn right on the board.</p>
-    <div class="cta">
-      <a class="btn primary" href="sileo://source/https://itzzace.github.io/chess-assistant/" id="addRepo">&plus; Add to Sileo</a>
-      <a class="btn ghost" href="https://github.com/itzzace/chess-assistant/releases/latest" id="dl">Download</a>
-    </div>
-    <p class="warn">Jailbreak: add the repo. No jailbreak: grab the iOS 16 / 17 IPA and install with TrollStore.</p>
-  </header>
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div>
+          <div class="eyebrow">Version 2.6.0 · Stockfish 18 + Maia 3</div>
+          <h1 id="hero-title">Read the board.<br><span>Know the plan.</span></h1>
+          <p class="hero-copy">A local-first chess study assistant for iOS. Compare engine lines, explore opening ideas, and review your moves without sending positions to a remote analysis service.</p>
+          <div class="hero-actions">
+            <a class="button" href="https://github.com/itzmnyzzzXD/chess-assistant/releases">Browse releases ↗</a>
+            <a class="button secondary" href="#features">Explore features</a>
+          </div>
+          <p class="hero-note">Designed for study, puzzles, and environments where chess assistance is allowed.</p>
+        </div>
 
-  <section class="section">
-    <h2>Install</h2>
-    <div class="steps">
-      <div class="step"><div class="n">1</div><div><strong>Add the repo</strong><p>Tap <em>Add to Sileo</em> above, or add this URL manually in Sileo &rarr; Sources.</p>
-        <div class="repo-url"><span id="repoText">https://itzzace.github.io/chess-assistant/</span><button class="copy" id="copyBtn">Copy</button></div></div></div>
-      <div class="step"><div class="n">2</div><div><strong>Install Chess Assistant</strong><p>Find it in the repo and install, then respring.</p></div></div>
-      <div class="step"><div class="n">3</div><div><strong>Open Chess.com</strong><p>Tap the floating <code>&#9822;</code> button &rarr; settings. Toggle <strong>Maia</strong> for human-like play, set your ELO, and start a game.</p></div></div>
-    </div>
-  </section>
+        <div class="preview" aria-label="Illustration of a chess position and engine evaluation">
+          <div class="preview-head"><span>POSITION ANALYSIS</span><span class="ready">ENGINE READY</span></div>
+          <div class="board-frame">
+            <div class="rank-labels" aria-hidden="true"><span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span></div>
+            <div>
+              <div class="board" role="img" aria-label="Decorative chess board position">
+                <span class="sq light"><b class="piece-black">♜</b></span><span class="sq dark"><b class="piece-black">♞</b></span><span class="sq light"><b class="piece-black">♝</b></span><span class="sq dark"><b class="piece-black">♛</b></span><span class="sq light"><b class="piece-black">♚</b></span><span class="sq dark"><b class="piece-black">♝</b></span><span class="sq light"></span><span class="sq dark"><b class="piece-black">♜</b></span>
+                <span class="sq dark"><b class="piece-black">♟</b></span><span class="sq light"><b class="piece-black">♟</b></span><span class="sq dark"><b class="piece-black">♟</b></span><span class="sq light"></span><span class="sq dark"></span><span class="sq light"><b class="piece-black">♟</b></span><span class="sq dark"><b class="piece-black">♟</b></span><span class="sq light"><b class="piece-black">♟</b></span>
+                <span class="sq light"></span><span class="sq dark"></span><span class="sq light"></span><span class="sq dark"><b class="piece-black">♞</b></span><span class="sq light"></span><span class="sq dark"></span><span class="sq light"></span><span class="sq dark"></span>
+                <span class="sq dark"></span><span class="sq light"></span><span class="sq dark"></span><span class="sq light"></span><span class="sq dark"></span><span class="sq light"></span><span class="sq dark"></span><span class="sq light"></span>
+                <span class="sq light"></span><span class="sq dark"></span><span class="sq light"></span><span class="sq dark"><b class="piece-white">♘</b></span><span class="sq light last"></span><span class="sq dark"></span><span class="sq light"></span><span class="sq dark"></span>
+                <span class="sq dark"></span><span class="sq light"></span><span class="sq dark"></span><span class="sq light"></span><span class="sq dark"></span><span class="sq light"><b class="piece-white">♘</b></span><span class="sq dark"></span><span class="sq light"></span>
+                <span class="sq light"><b class="piece-white">♙</b></span><span class="sq dark"><b class="piece-white">♙</b></span><span class="sq light"><b class="piece-white">♙</b></span><span class="sq dark"></span><span class="sq light"></span><span class="sq dark"><b class="piece-white">♙</b></span><span class="sq light"><b class="piece-white">♙</b></span><span class="sq dark"><b class="piece-white">♙</b></span>
+                <span class="sq dark"><b class="piece-white">♖</b></span><span class="sq light"><b class="piece-white">♘</b></span><span class="sq dark"><b class="piece-white">♗</b></span><span class="sq light"><b class="piece-white">♕</b></span><span class="sq dark"><b class="piece-white">♔</b></span><span class="sq light"><b class="piece-white">♗</b></span><span class="sq dark"></span><span class="sq light"><b class="piece-white">♖</b></span>
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                  <defs><marker id="arrow" markerWidth="5" markerHeight="5" refX="3.6" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 Z" fill="#d8ff91"/></marker></defs>
+                  <path d="M43.75 56.25 Q54 45 68.75 31.25" stroke="#d8ff91" stroke-width="1.6" fill="none" marker-end="url(#arrow)" opacity=".95"/>
+                </svg>
+              </div>
+              <div class="files" aria-hidden="true"><span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span><span>g</span><span>h</span></div>
+            </div>
+          </div>
+          <div class="engine-readout">
+            <div><small>STOCKFISH 18 · FAST SEARCH</small><strong>Candidate line found</strong></div>
+            <div class="eval">+1.4</div>
+          </div>
+          <div class="move-strip" aria-label="Example candidate moves">
+            <span class="move"><b>1.</b> Nf3</span><span class="move">e5</span><span class="move"><b>2.</b> d4</span>
+          </div>
+        </div>
+      </section>
 
-  <footer>
-    Open source on <a href="https://github.com/itzzace/chess-assistant">GitHub</a>.
-    Powered by <a href="https://stockfishchess.org">Stockfish</a> and <a href="https://github.com/CSSLab/maia3">Maia&nbsp;3</a>.
-  </footer>
+      <div class="trust-row" aria-label="Product details">
+        <div class="trust-item"><strong>On-device engines</strong><span>Stockfish 18 and Maia 3</span></div>
+        <div class="trust-item"><strong>No analysis API</strong><span>Positions stay on the device</span></div>
+        <div class="trust-item"><strong>Two search profiles</strong><span>Fast for responsiveness, Deep for analysis</span></div>
+      </div>
 
-</div>
-<script>
-  var repo = "https://itzzace.github.io/chess-assistant/";
-  document.getElementById("copyBtn").addEventListener("click", function () {
-    navigator.clipboard.writeText(repo).then(function () {
-      var b = document.getElementById("copyBtn"); b.textContent = "Copied"; setTimeout(function(){ b.textContent = "Copy"; }, 1500);
-    });
-  });
-</script>
+      <section class="content" id="features" aria-labelledby="features-title">
+        <div class="section-heading">
+          <div><div class="kicker">The toolkit</div><h2 id="features-title">More signal. Less waiting.</h2></div>
+          <p>The interface keeps the most useful information close to the board and puts deeper controls one tap away.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature"><div class="feature-index">01 / ENGINE</div><h3>Stockfish + Maia</h3><p>Choose tactical engine analysis or Maia's human-style move selection with on-device Core ML inference.</p></article>
+          <article class="feature"><div class="feature-index">02 / SPEED</div><h3>Fast or Deep</h3><p>Fast limits search depth and candidate count. Deep keeps the full ELO-based depth for a more thorough read.</p></article>
+          <article class="feature"><div class="feature-index">03 / REVIEW</div><h3>Move quality</h3><p>Track accuracy, see move grades, inspect evaluations, and copy positions or PGN for later review.</p></article>
+          <article class="feature"><div class="feature-index">04 / BOARD</div><h3>Clear at a glance</h3><p>Adjust arrow count, evaluation labels, color, thickness, opacity, and the evaluation bar.</p></article>
+        </div>
+      </section>
+
+      <section class="content" id="repertoire" aria-labelledby="repertoire-title">
+        <div class="gambit-section">
+          <div class="gambit-intro">
+            <div class="kicker">Opening repertoire</div>
+            <h2 id="repertoire-title">Choose your gambit.</h2>
+            <p>Select an opening line in the settings panel. The built-in sequence is followed only while the game's move history matches it; once the line changes, normal engine analysis takes over.</p>
+          </div>
+          <div class="gambit-list">
+            <div class="gambit-pill"><strong>Alien Gambit</strong><span>Caro-Kann · White</span></div>
+            <div class="gambit-pill"><strong>King's Gambit</strong><span>Open Game · White</span></div>
+            <div class="gambit-pill"><strong>Evans Gambit</strong><span>Italian Game · White</span></div>
+            <div class="gambit-pill"><strong>Danish Gambit</strong><span>Open Game · White</span></div>
+            <div class="gambit-pill"><strong>Smith-Morra</strong><span>Sicilian · White</span></div>
+            <div class="gambit-pill"><strong>Budapest Gambit</strong><span>Indian Defense · Black</span></div>
+            <div class="gambit-pill"><strong>Englund Gambit</strong><span>Queen's Pawn · Black</span></div>
+            <div class="gambit-pill"><strong>Blackmar-Diemer</strong><span>Queen's Pawn · White</span></div>
+            <div class="gambit-pill"><strong>Halloween Gambit</strong><span>Four Knights · White</span></div>
+            <div class="gambit-pill"><strong>Stafford Gambit</strong><span>Petrov · Black</span></div>
+            <div class="gambit-pill"><strong>Latvian Gambit</strong><span>Open Game · Black</span></div>
+            <div class="gambit-warning"><strong>Opening note:</strong> The Alien Gambit is an aggressive knight sacrifice and is considered objectively unsound. It is included as a study line, not represented as a forced win.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="content" id="install" aria-labelledby="install-title">
+        <div class="section-heading">
+          <div><div class="kicker">Get started</div><h2 id="install-title">Install and open the board.</h2></div>
+          <p>Package delivery depends on your iOS installation method. The project source and build instructions are available in the repository.</p>
+        </div>
+        <div class="install-grid">
+          <article class="install-card">
+            <div class="tag">Jailbroken · Rootless</div>
+            <h3>Sileo or Zebra</h3>
+            <p>Add the existing package source, install Chess Assistant, then respring before opening Chess.com.</p>
+            <div class="source-box"><span id="source-url">https://itzzace.github.io/chess-assistant/</span><button class="copy-button" id="copy-source" type="button" aria-label="Copy package source URL">Copy URL</button></div>
+            <p id="copy-status" role="status" aria-live="polite"></p>
+          </article>
+          <article class="install-card">
+            <div class="tag">No jailbreak · TrollStore</div>
+            <h3>Install a compatible IPA</h3>
+            <p>Use a compatible injected IPA from the project releases. The maintainer build workflow requires a decrypted app package.</p>
+            <a class="button secondary" href="https://github.com/itzmnyzzzXD/chess-assistant/releases">Open releases ↗</a>
+          </article>
+        </div>
+        <div class="notice"><strong>Fair-play reminder:</strong> real-time engine suggestions and automated move execution may be prohibited in competitive online games. Use this project for study, puzzles, offline practice, and only in settings where assistance is allowed. Always follow the rules of the platform you're using.</div>
+      </section>
+    </main>
+
+    <footer>
+      <span>Chess Assistant · v2.6.0 · Local-first chess study</span>
+      <span><a href="https://github.com/itzmnyzzzXD/chess-assistant">Source code</a> · <a href="https://stockfishchess.org/">Stockfish</a> · <a href="https://github.com/CSSLab/maia3">Maia 3</a></span>
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      var button = document.getElementById("copy-source");
+      var source = document.getElementById("source-url");
+      var status = document.getElementById("copy-status");
+      if (!button || !source || !status) return;
+
+      button.addEventListener("click", async function () {
+        var value = source.textContent.trim();
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(value);
+          } else {
+            var field = document.createElement("textarea");
+            field.value = value;
+            field.setAttribute("readonly", "");
+            field.style.position = "fixed";
+            field.style.opacity = "0";
+            document.body.appendChild(field);
+            field.select();
+            var copied = document.execCommand("copy");
+            field.remove();
+            if (!copied) throw new Error("Clipboard unavailable");
+          }
+          button.textContent = "Copied";
+          status.textContent = "Package source copied.";
+        } catch (error) {
+          button.textContent = "Select URL";
+          status.textContent = "Copy was blocked. Select the source URL above to copy it manually.";
+        }
+      });
+    }());
+  </script>
 </body>
 </html>

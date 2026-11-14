@@ -23,6 +23,8 @@
 #define PREF_EVALLBL @"ChessAssist_EvalLabels"
 #define PREF_EVALBAR @"ChessAssist_EvalBar"
 #define PREF_USEMAIA @"ChessAssist_UseMaia"
+#define PREF_FASTMODE @"ChessAssist_FastMode"
+#define PREF_GAMBIT @"ChessAssist_SelectedGambit"
 #define PREF_AUTOPLAY @"ChessAssist_AutoPlay"
 #define PREF_APDELAY  @"ChessAssist_AutoPlayDelay"
 #define PREF_APJITEN  @"ChessAssist_AutoPlayJitterEnabled"
@@ -64,6 +66,8 @@ static double gQual2ndWhite = 0;
 static BOOL   gQualHave2nd = NO;
 static BOOL gShowEvalLabels = YES;
 static BOOL gUseMaia = NO;
+static BOOL gFastMode = YES;
+static NSString *gSelectedGambit = @"Off";
 static BOOL gAutoPlay = NO;
 static double gAutoPlayDelay = 0.15;
 static BOOL gAutoPlayJitterEnabled = NO;
@@ -114,6 +118,8 @@ static void savePrefs(void) {
     [d setBool:gTrackQuality forKey:PREF_QUALITY];
     [d setBool:gShowEvalLabels forKey:PREF_EVALLBL];
     [d setBool:gUseMaia forKey:PREF_USEMAIA];
+    [d setBool:gFastMode forKey:PREF_FASTMODE];
+    [d setObject:(gSelectedGambit ?: @"Off") forKey:PREF_GAMBIT];
     [d setBool:gAutoPlay forKey:PREF_AUTOPLAY];
     [d setDouble:gAutoPlayDelay forKey:PREF_APDELAY];
     [d setBool:gShowEvalBar forKey:PREF_EVALBAR];
@@ -135,6 +141,9 @@ static void loadPrefs(void) {
     if ([d objectForKey:PREF_QUALITY]) gTrackQuality = [d boolForKey:PREF_QUALITY];
     if ([d objectForKey:PREF_EVALLBL]) gShowEvalLabels = [d boolForKey:PREF_EVALLBL];
     if ([d objectForKey:PREF_USEMAIA]) gUseMaia = [d boolForKey:PREF_USEMAIA];
+    if ([d objectForKey:PREF_FASTMODE]) gFastMode = [d boolForKey:PREF_FASTMODE];
+    NSString *savedGambit = [d stringForKey:PREF_GAMBIT];
+    if (savedGambit.length) gSelectedGambit = [savedGambit copy];
     if ([d objectForKey:PREF_AUTOPLAY]) gAutoPlay = [d boolForKey:PREF_AUTOPLAY];
     if ([d objectForKey:PREF_APDELAY]) {
         gAutoPlayDelay = [d doubleForKey:PREF_APDELAY];
@@ -173,6 +182,56 @@ static NSInteger eloToDepth(NSInteger elo) {
     if (elo >= 1200) return 9;   if (elo >= 1000) return 8;
     if (elo >= 700)  return 6;   if (elo >= 500) return 5;
     return 4;
+}
+
+
+static NSArray<NSDictionary *> *gambitLibrary(void) {
+    static NSArray<NSDictionary *> *items = nil;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        items = @[
+            @{@"name": @"Off", @"side": @"Both", @"detail": @"Use engine analysis without an opening line.", @"moves": @[]},
+            @{@"name": @"Alien Gambit", @"side": @"White", @"detail": @"Caro-Kann · sharp knight sacrifice · objectively unsound.", @"moves": @[@"e2e4",@"c7c6",@"d2d4",@"d7d5",@"b1d2",@"d5e4",@"d2e4",@"g8f6",@"e4g5",@"h7h6",@"g5f7",@"e8f7",@"g1f3",@"c6c5"]},
+            @{@"name": @"King's Gambit", @"side": @"White", @"detail": @"Open Game · rapid development and kingside initiative.", @"moves": @[@"e2e4",@"e7e5",@"f2f4",@"e5f4",@"g1f3",@"g7g5",@"h2h4",@"g5g4",@"f3e5"]},
+            @{@"name": @"Evans Gambit", @"side": @"White", @"detail": @"Italian Game · pawn offer for quick development.", @"moves": @[@"e2e4",@"e7e5",@"g1f3",@"b8c6",@"f1c4",@"f8c5",@"b2b4",@"c5b4",@"c2c3",@"b4a5"]},
+            @{@"name": @"Danish Gambit", @"side": @"White", @"detail": @"Open Game · sacrifices one or two pawns for open lines.", @"moves": @[@"e2e4",@"e7e5",@"d2d4",@"e5d4",@"c2c3",@"d4c3",@"f1c4"]},
+            @{@"name": @"Smith-Morra Gambit", @"side": @"White", @"detail": @"Sicilian Defense · development and open files for a pawn.", @"moves": @[@"e2e4",@"c7c5",@"d2d4",@"c5d4",@"c2c3",@"d4c3",@"b1c3"]},
+            @{@"name": @"Budapest Gambit", @"side": @"Black", @"detail": @"Queen's Pawn Game · active piece play after ...e5.", @"moves": @[@"d2d4",@"g8f6",@"c2c4",@"e7e5",@"d4e5",@"f6g4",@"c1f4",@"b8c6"]},
+            @{@"name": @"Englund Gambit", @"side": @"Black", @"detail": @"Queen's Pawn Game · surprise counterattack; objectively risky.", @"moves": @[@"d2d4",@"e7e5",@"d4e5",@"b8c6",@"g1f3",@"d8e7"]},
+            @{@"name": @"Blackmar-Diemer Gambit", @"side": @"White", @"detail": @"Queen's Pawn Game · fast development and attacking chances.", @"moves": @[@"d2d4",@"d7d5",@"e2e4",@"d5e4",@"b1c3",@"g8f6",@"f2f3",@"e4f3",@"d1f3"]},
+            @{@"name": @"Halloween Gambit", @"side": @"White", @"detail": @"Four Knights · a piece sacrifice for central pawns.", @"moves": @[@"e2e4",@"e7e5",@"g1f3",@"b8c6",@"b1c3",@"g8f6",@"f3e5"]},
+            @{@"name": @"Stafford Gambit", @"side": @"Black", @"detail": @"Petrov Defense · tactical counterplay; highly risky.", @"moves": @[@"e2e4",@"e7e5",@"g1f3",@"g8f6",@"f3e5",@"b8c6",@"e5c6",@"d7c6"]},
+            @{@"name": @"Latvian Gambit", @"side": @"Black", @"detail": @"Open Game · immediate ...f5 counterattack; objectively risky.", @"moves": @[@"e2e4",@"e7e5",@"g1f3",@"f7f5"]}
+        ];
+    });
+    return items;
+}
+
+static NSDictionary *selectedGambitEntry(void) {
+    for (NSDictionary *entry in gambitLibrary()) {
+        if ([entry[@"name"] isEqualToString:(gSelectedGambit ?: @"Off")]) return entry;
+    }
+    return gambitLibrary().firstObject;
+}
+
+static NSString *nextGambitBookMove(void) {
+    NSDictionary *entry = selectedGambitEntry();
+    NSArray *line = entry[@"moves"];
+    if (![line isKindOfClass:[NSArray class]] || line.count == 0 || !gUciSeq || !gPgnStartFen.length) return nil;
+
+    NSString *startpos = @"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    if (![gPgnStartFen isEqualToString:startpos]) return nil;
+
+    NSMutableArray<NSString *> *played = [NSMutableArray array];
+    for (NSString *token in [gUciSeq componentsSeparatedByString:@" "]) {
+        if (token.length >= 4) [played addObject:token];
+    }
+    if (played.count >= line.count) return nil;
+
+    for (NSUInteger i = 0; i < played.count; i++) {
+        if (![played[i] isEqualToString:line[i]]) return nil;
+    }
+    return line[played.count];
 }
 
 static void showQualityToast(NSString *text, UIColor *color);
@@ -699,7 +758,7 @@ static void setupFloatingButton(void) {
 
     gBtnWin.rootViewController.view.userInteractionEnabled = YES;
 
-    CGFloat btnSize = 40;
+    CGFloat btnSize = 46;
     CGFloat screenW = [UIScreen mainScreen].bounds.size.width;
     CGFloat screenH = [UIScreen mainScreen].bounds.size.height;
     CGFloat x = screenW - btnSize - 8;
@@ -708,7 +767,10 @@ static void setupFloatingButton(void) {
     gFloatBtn = [UIButton buttonWithType:UIButtonTypeCustom];
     gFloatBtn.frame = CGRectMake(x, y, btnSize, btnSize);
     gFloatBtn.backgroundColor = [UIColor colorWithRed:0.15 green:0.15 blue:0.15 alpha:0.85];
-    gFloatBtn.layer.cornerRadius = 8;
+    gFloatBtn.layer.cornerRadius = 13;
+    gFloatBtn.accessibilityLabel = @"Open Chess Assistant settings";
+    gFloatBtn.accessibilityHint = @"Opens engine, display, analysis, and opening repertoire controls.";
+    gFloatBtn.accessibilityTraits = UIAccessibilityTraitButton;
     gFloatBtn.layer.borderColor = [UIColor colorWithWhite:0.4 alpha:1].CGColor;
     gFloatBtn.layer.borderWidth = 1;
     [gFloatBtn setTitle:@"♟" forState:UIControlStateNormal];
@@ -829,7 +891,7 @@ static void redrawArrows(void) {
 static void showEloMenu(void) {
     UIAlertController *ac = [UIAlertController
         alertControllerWithTitle:@"Set ELO"
-        message:@"Higher = stronger but riskier. ⚠️ = above ~1500 (ban risk)."
+        message:@"Use high settings for analysis and offline study. Follow the fair-play rules of the platform you use."
         preferredStyle:UIAlertControllerStyleActionSheet];
 
     NSArray *levels = @[@400, @600, @800, @1000, @1200, @1400, @1600, @1800,
@@ -841,8 +903,8 @@ static void showEloMenu(void) {
     for (NSUInteger i = 0; i < levels.count; i++) {
         NSInteger lvl = [levels[i] integerValue];
         [ac addAction:[UIAlertAction
-            actionWithTitle:[NSString stringWithFormat:@"%@%@%@", names[i],
-                             lvl > 1500 ? @" ⚠️" : @"", lvl == gElo ? @" ✓" : @""]
+            actionWithTitle:[NSString stringWithFormat:@"%@%@", names[i],
+                             lvl == gElo ? @" ✓" : @""]
             style:UIAlertActionStyleDefault
             handler:^(UIAlertAction *_) {
                 gElo = lvl;
@@ -850,10 +912,8 @@ static void showEloMenu(void) {
                 dbg([NSString stringWithFormat:@"ELO set to %ld", (long)lvl]);
                 if (lvl > 1500) {
                     UIAlertController *w = [UIAlertController
-                        alertControllerWithTitle:@"⚠️ Ban Risk"
-                        message:@"Playing above ~1500 strength is much easier for Chess.com's "
-                                 "fair-play system to detect and greatly increases your risk of "
-                                 "an account ban. Lower ELO is safer."
+                        alertControllerWithTitle:@"Fair-play reminder"
+                        message:@"High engine settings are intended for analysis and offline study. Do not use real-time assistance in rated or competitive games, or in modes where it is prohibited."
                         preferredStyle:UIAlertControllerStyleAlert];
                     [w addAction:[UIAlertAction actionWithTitle:@"I understand"
                         style:UIAlertActionStyleDestructive
@@ -1032,6 +1092,42 @@ static void showSettingsMenu(void) {
 #endif
 
 
+static void showGambitMenu(void) {
+    NSDictionary *active = selectedGambitEntry();
+    UIAlertController *ac = [UIAlertController
+        alertControllerWithTitle:@"Opening Repertoire"
+        message:@"Choose a gambit line. The book is followed only while the move order matches the selected line."
+        preferredStyle:UIAlertControllerStyleActionSheet];
+
+    for (NSDictionary *entry in gambitLibrary()) {
+        NSString *name = entry[@"name"];
+        NSString *side = entry[@"side"] ?: @"Both";
+        NSString *title = [NSString stringWithFormat:@"%@ · %@%@",
+                           name, side, [name isEqualToString:active[@"name"]] ? @"  ✓" : @""];
+        [ac addAction:[UIAlertAction actionWithTitle:title
+            style:UIAlertActionStyleDefault
+            handler:^(UIAlertAction *_) {
+                gSelectedGambit = [name copy];
+                savePrefs();
+                gLastFen = nil;
+                dbg([NSString stringWithFormat:@"opening book: %@", name]);
+                reopenSettings();
+            }]];
+    }
+
+    [ac addAction:[UIAlertAction actionWithTitle:@"Close"
+        style:UIAlertActionStyleCancel handler:^(UIAlertAction *_) { reopenSettings(); }]];
+
+    UIPopoverPresentationController *pop = ac.popoverPresentationController;
+    if (pop) {
+        UIView *v = menuWin().rootViewController.view;
+        pop.sourceView = v;
+        pop.sourceRect = CGRectMake(CGRectGetMidX(v.bounds), CGRectGetMidY(v.bounds), 0, 0);
+        pop.permittedArrowDirections = 0;
+    }
+    dispatch_async(dispatch_get_main_queue(), ^{ showAC(ac); });
+}
+
 @interface CHPad : UILabel @end
 @implementation CHPad
 - (void)drawTextInRect:(CGRect)r {
@@ -1071,6 +1167,17 @@ static NSString *ecoName(void) {
             @"e2e4 c7c5 g1f3 d7d6 d2d4 c5d4 g1d4 g8f6 b1c3 a7a6": @"Sicilian, Najdorf",
             @"e2e4 e7e6":                                   @"French Defense",
             @"e2e4 c7c6":                                   @"Caro-Kann Defense",
+            @"e2e4 c7c6 d2d4 d7d5 b1d2 d5e4 d2e4 g8f6 e4g5 h7h6 g5f7": @"Alien Gambit",
+            @"e2e4 e7e5 f2f4 e5f4":                       @"King's Gambit Accepted",
+            @"e2e4 e7e5 g1f3 b8c6 f1c4 f8c5 b2b4":        @"Evans Gambit",
+            @"e2e4 e7e5 d2d4 e5d4 c2c3":                 @"Danish Gambit",
+            @"e2e4 c7c5 d2d4 c5d4 c2c3":                 @"Smith-Morra Gambit",
+            @"d2d4 g8f6 c2c4 e7e5":                      @"Budapest Gambit",
+            @"d2d4 e7e5":                                @"Englund Gambit",
+            @"d2d4 d7d5 e2e4 d5e4 b1c3":                 @"Blackmar-Diemer Gambit",
+            @"e2e4 e7e5 g1f3 b8c6 b1c3 g8f6 f3e5":       @"Halloween Gambit",
+            @"e2e4 e7e5 g1f3 g8f6 f3e5 b8c6 e5c6 d7c6":   @"Stafford Gambit",
+            @"e2e4 e7e5 g1f3 f7f5":                      @"Latvian Gambit",
             @"e2e4 d7d6":                                   @"Pirc Defense",
             @"e2e4 d7d5":                                   @"Scandinavian Defense",
             @"e2e4 g8f6":                                   @"Alekhine Defense",
@@ -1211,7 +1318,7 @@ static void clampGeloToActiveRange(void) {
     UILabel *l = [[UILabel alloc] init];
     l.text = t.uppercaseString;
     l.font = [UIFont systemFontOfSize:11 weight:UIFontWeightSemibold];
-    l.textColor = [UIColor colorWithWhite:1 alpha:0.45];
+    l.textColor = [UIColor colorWithWhite:0.76 alpha:1.0];
     NSMutableAttributedString *attr = [[NSMutableAttributedString alloc] initWithString:l.text attributes:@{
         NSFontAttributeName: l.font,
         NSForegroundColorAttributeName: l.textColor,
@@ -1264,7 +1371,7 @@ static void clampGeloToActiveRange(void) {
         s.selectedSegmentTintColor = CH_ACCENT;
         s.backgroundColor = [UIColor colorWithWhite:1 alpha:0.1];
         [s setTitleTextAttributes:@{NSForegroundColorAttributeName:UIColor.whiteColor} forState:UIControlStateNormal];
-        [s setTitleTextAttributes:@{NSForegroundColorAttributeName:UIColor.whiteColor} forState:UIControlStateSelected];
+        [s setTitleTextAttributes:@{NSForegroundColorAttributeName:[UIColor colorWithRed:0.08 green:0.11 blue:0.07 alpha:1.0]} forState:UIControlStateSelected];
     }
     [s setContentHuggingPriority:1000 forAxis:UILayoutConstraintAxisHorizontal];
 }
@@ -1272,6 +1379,13 @@ static void clampGeloToActiveRange(void) {
 - (UISwitch *)switchOn:(BOOL)on sel:(SEL)sel {
     UISwitch *sw = [[UISwitch alloc] init];
     sw.on = on; sw.onTintColor = CH_ACCENT;
+    if (sel == @selector(swEvalBar:)) sw.accessibilityLabel = @"Evaluation bar";
+    else if (sel == @selector(swAnalysis:)) sw.accessibilityLabel = @"Move analysis";
+    else if (sel == @selector(swLabels:)) sw.accessibilityLabel = @"Evaluation labels";
+    else if (sel == @selector(swColor:)) sw.accessibilityLabel = @"Color arrows by evaluation";
+    else if (sel == @selector(swAutoPlay:)) sw.accessibilityLabel = @"Automated move execution";
+    else if (sel == @selector(swAutoJitter:)) sw.accessibilityLabel = @"Vary move delay";
+    else if (sel == @selector(swAutoSecondBest:)) sw.accessibilityLabel = @"Allow second candidate move";
     [sw addTarget:self action:sel forControlEvents:UIControlEventValueChanged];
     return sw;
 }
@@ -1288,7 +1402,7 @@ static void clampGeloToActiveRange(void) {
 - (UIButton *)bigBtn:(NSString *)t color:(UIColor *)col sel:(SEL)sel {
     UIButton *b = [UIButton buttonWithType:UIButtonTypeSystem];
     [b setTitle:t forState:UIControlStateNormal];
-    [b setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
+    [b setTitleColor:[UIColor colorWithRed:0.07 green:0.10 blue:0.06 alpha:1.0] forState:UIControlStateNormal];
     b.titleLabel.font = [UIFont boldSystemFontOfSize:16];
     b.backgroundColor = col; b.layer.cornerRadius = 12;
     [b.heightAnchor constraintEqualToConstant:48].active = YES;
@@ -1425,6 +1539,7 @@ static void clampGeloToActiveRange(void) {
 
         UIButton *x = [UIButton buttonWithType:UIButtonTypeSystem];
         [x setTitle:@"✕" forState:UIControlStateNormal];
+        x.accessibilityLabel = @"Close settings";
         x.titleLabel.font = [UIFont systemFontOfSize:20];
         [x setTitleColor:[UIColor colorWithWhite:0.7 alpha:1] forState:UIControlStateNormal];
         [x addTarget:self action:@selector(closeTap) forControlEvents:UIControlEventTouchUpInside];
@@ -1434,10 +1549,11 @@ static void clampGeloToActiveRange(void) {
         hdr.axis = UILayoutConstraintAxisHorizontal; hdr.alignment = UIStackViewAlignmentCenter;
         [_stack addArrangedSubview:hdr];
 
-        NSString *sub = [NSString stringWithFormat:@"%@ · Depth %ld · %@ · Playing %@",
-            gEnabled ? @"Active" : @"Paused",
-            (long)eloToDepth(gElo),
-            gUseMaia ? @"Maia" : @"Stockfish",
+        NSInteger shownDepth = eloToDepth(gElo);
+        if (gFastMode) shownDepth = MIN(shownDepth, 12);
+        NSString *sub = [NSString stringWithFormat:@"%@ · %@ · Depth %ld · %@ · Playing %@",
+            gEnabled ? @"Active" : @"Paused", gFastMode ? @"Fast" : @"Deep",
+            (long)shownDepth, gUseMaia ? @"Maia" : @"Stockfish",
             gMyColor == 0 ? @"White" : (gMyColor == 1 ? @"Black" : @"—")];
         UILabel *subLbl = [self lbl:sub size:13 weight:UIFontWeightSemibold color:[UIColor colorWithWhite:0.75 alpha:1]];
         [_stack addArrangedSubview:subLbl];
@@ -1461,6 +1577,8 @@ static void clampGeloToActiveRange(void) {
 
         UISegmentedControl *engSeg = [[UISegmentedControl alloc] initWithItems:@[@"SF18", @"MAIA"]];
         engSeg.selectedSegmentIndex = gUseMaia ? 1 : 0;
+        engSeg.accessibilityLabel = @"Analysis engine";
+        engSeg.accessibilityHint = @"Choose Stockfish 18 or Maia 3.";
         [self styleSeg:engSeg];
         [engSeg addTarget:self action:@selector(engSeg:) forControlEvents:UIControlEventValueChanged];
 
@@ -1472,6 +1590,8 @@ static void clampGeloToActiveRange(void) {
         [_eloValue setContentHuggingPriority:1000 forAxis:UILayoutConstraintAxisHorizontal];
         UISlider *elo = [[UISlider alloc] init];
         elo.minimumValue = 0; elo.maximumValue = eloCnt - 1; elo.value = activeEloNearestIndex(gElo);
+        elo.accessibilityLabel = @"Engine strength";
+        elo.accessibilityValue = [NSString stringWithFormat:@"%ld", (long)gElo];
         elo.minimumTrackTintColor = CH_ACCENT;
         [elo addTarget:self action:@selector(eloSlide:) forControlEvents:UIControlEventValueChanged];
         [elo addTarget:self action:@selector(eloDone:) forControlEvents:UIControlEventTouchUpInside | UIControlEventTouchUpOutside];
@@ -1479,23 +1599,47 @@ static void clampGeloToActiveRange(void) {
         UIStackView *eloHdr = [[UIStackView alloc] initWithArrangedSubviews:@[
             [self lbl:strengthTitle size:15 weight:UIFontWeightMedium color:UIColor.whiteColor], _eloValue]];
         eloHdr.axis = UILayoutConstraintAxisHorizontal; eloHdr.distribution = UIStackViewDistributionFill;
+        UISegmentedControl *speedSeg = [[UISegmentedControl alloc] initWithItems:@[@"Fast", @"Deep"]];
+        speedSeg.selectedSegmentIndex = gFastMode ? 0 : 1;
+        speedSeg.accessibilityLabel = @"Search profile";
+        speedSeg.accessibilityHint = @"Fast uses a capped search; Deep uses the full ELO-based depth.";
+        [self styleSeg:speedSeg];
+        [speedSeg addTarget:self action:@selector(speedSeg:) forControlEvents:UIControlEventValueChanged];
+
         UIStackView *eloCol = [[UIStackView alloc] initWithArrangedSubviews:@[
             [self rowTitle:@"Engine" control:engSeg], [self sep],
-            eloHdr, [self sliderRow:elo], _eloTier]];
+            eloHdr, [self sliderRow:elo], _eloTier, [self sep],
+            [self rowTitle:@"Search speed" control:speedSeg]]];
         eloCol.axis = UILayoutConstraintAxisVertical; eloCol.spacing = 8;
         [_stack addArrangedSubview:[self group:eloCol]];
+
+        [_stack addArrangedSubview:[self sectionLabel:@"Opening repertoire"]];
+        UIButton *gambitButton = [self smallBtn:[NSString stringWithFormat:@"Choose line · %@  ›", gSelectedGambit ?: @"Off"]
+                                            sel:@selector(gambitTap)];
+        gambitButton.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeading;
+        gambitButton.titleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
+        gambitButton.accessibilityLabel = @"Choose an opening gambit";
+        gambitButton.accessibilityHint = @"Select an opening line to follow from the gambit repertoire.";
+        NSString *gambitDetail = selectedGambitEntry()[@"detail"] ?: @"";
+        UIStackView *gambitCol = [[UIStackView alloc] initWithArrangedSubviews:@[
+            gambitButton,
+            [self lbl:gambitDetail size:12 weight:UIFontWeightMedium color:[UIColor colorWithWhite:0.78 alpha:1]],
+            [self lbl:@"The book continues only while the game follows the chosen move order."
+                 size:11 weight:UIFontWeightRegular color:[UIColor colorWithWhite:0.70 alpha:1]]]];
+        gambitCol.axis = UILayoutConstraintAxisVertical; gambitCol.spacing = 8;
+        [_stack addArrangedSubview:[self group:gambitCol]];
 
         // ---- DISPLAY ----
         [_stack addArrangedSubview:[self sectionLabel:@"Display"]];
 
         UISegmentedControl *evalSeg = [[UISegmentedControl alloc] initWithItems:@[@"Centipawn", @"Win %"]];
-        evalSeg.selectedSegmentIndex = gShowWinPct ? 1 : 0; [self styleSeg:evalSeg];
+        evalSeg.selectedSegmentIndex = gShowWinPct ? 1 : 0; evalSeg.accessibilityLabel = @"Evaluation display"; [self styleSeg:evalSeg];
         [evalSeg addTarget:self action:@selector(evalSeg:) forControlEvents:UIControlEventValueChanged];
         UISegmentedControl *arrSeg = [[UISegmentedControl alloc] initWithItems:@[@"1", @"2", @"3"]];
-        arrSeg.selectedSegmentIndex = MIN(2, MAX(0, (int)gArrowCount - 1)); [self styleSeg:arrSeg];
+        arrSeg.selectedSegmentIndex = MIN(2, MAX(0, (int)gArrowCount - 1)); arrSeg.accessibilityLabel = @"Number of candidate arrows"; [self styleSeg:arrSeg];
         [arrSeg addTarget:self action:@selector(arrSeg:) forControlEvents:UIControlEventValueChanged];
         UISegmentedControl *thickSeg = [[UISegmentedControl alloc] initWithItems:@[@"Thin", @"Med", @"Thick"]];
-        thickSeg.selectedSegmentIndex = gArrowThick < 0.85 ? 0 : (gArrowThick > 1.2 ? 2 : 1); [self styleSeg:thickSeg];
+        thickSeg.selectedSegmentIndex = gArrowThick < 0.85 ? 0 : (gArrowThick > 1.2 ? 2 : 1); thickSeg.accessibilityLabel = @"Arrow thickness"; [self styleSeg:thickSeg];
         [thickSeg addTarget:self action:@selector(thickSeg:) forControlEvents:UIControlEventValueChanged];
 
         _opValue = [self lbl:[NSString stringWithFormat:@"%d%%", (int)round(gArrowAlpha * 100)]
@@ -1503,6 +1647,7 @@ static void clampGeloToActiveRange(void) {
         [_opValue setContentHuggingPriority:1000 forAxis:UILayoutConstraintAxisHorizontal];
         UISlider *op = [[UISlider alloc] init];
         op.minimumValue = 0.3; op.maximumValue = 1.0; op.value = gArrowAlpha; op.minimumTrackTintColor = CH_ACCENT;
+        op.accessibilityLabel = @"Arrow opacity";
         [op addTarget:self action:@selector(opSlide:) forControlEvents:UIControlEventValueChanged];
 
         UIStackView *grp = [[UIStackView alloc] initWithArrangedSubviews:@[
@@ -1535,6 +1680,7 @@ static void clampGeloToActiveRange(void) {
                              size:15 weight:UIFontWeightSemibold color:CH_ACCENT];
         [_apDelayValue setContentHuggingPriority:1000 forAxis:UILayoutConstraintAxisHorizontal];
         UISlider *apDelay = [[UISlider alloc] init];
+        apDelay.accessibilityLabel = @"Automated move delay";
         apDelay.minimumValue = 0.0; apDelay.maximumValue = 5.0;
         apDelay.value = gAutoPlayDelay; apDelay.minimumTrackTintColor = CH_ACCENT;
         [apDelay addTarget:self action:@selector(apDelaySlide:) forControlEvents:UIControlEventValueChanged];
@@ -1544,6 +1690,7 @@ static void clampGeloToActiveRange(void) {
                               size:15 weight:UIFontWeightSemibold color:CH_ACCENT];
         [_apJitterValue setContentHuggingPriority:1000 forAxis:UILayoutConstraintAxisHorizontal];
         UISlider *apJitter = [[UISlider alloc] init];
+        apJitter.accessibilityLabel = @"Move delay variation";
         apJitter.minimumValue = 0.0; apJitter.maximumValue = 2.0;
         apJitter.value = gAutoPlayJitterRange; apJitter.minimumTrackTintColor = CH_ACCENT;
         [apJitter addTarget:self action:@selector(apJitterSlide:) forControlEvents:UIControlEventValueChanged];
@@ -1553,6 +1700,7 @@ static void clampGeloToActiveRange(void) {
                      size:15 weight:UIFontWeightSemibold color:CH_ACCENT];
         [_apSecondPctValue setContentHuggingPriority:1000 forAxis:UILayoutConstraintAxisHorizontal];
         UISlider *apSecondPct = [[UISlider alloc] init];
+        apSecondPct.accessibilityLabel = @"Second candidate move probability";
         apSecondPct.minimumValue = 0.0; apSecondPct.maximumValue = 50.0;
         apSecondPct.value = gAutoPlaySecondBestPct; apSecondPct.minimumTrackTintColor = CH_ACCENT;
         [apSecondPct addTarget:self action:@selector(apSecondPctSlide:) forControlEvents:UIControlEventValueChanged];
@@ -1581,7 +1729,7 @@ static void clampGeloToActiveRange(void) {
         [_stack addArrangedSubview:[self bigBtn:(gEnabled ? @"Pause Assistant" : @"Enable Assistant")
                                           color:(gEnabled ? [UIColor systemRedColor] : CH_ACCENT)
                                             sel:@selector(enableTap)]];
-        UIButton *prefBtn = [self smallBtn:@"⚡ Preferred Settings (Ban-Safe)" sel:@selector(preferredTap)];
+        UIButton *prefBtn = [self smallBtn:@"⚡ Study Preset" sel:@selector(preferredTap)];
         prefBtn.backgroundColor = [CH_ACCENT colorWithAlphaComponent:0.25];
         [_stack addArrangedSubview:prefBtn];
         UIStackView *copyRow = [[UIStackView alloc] initWithArrangedSubviews:@[
@@ -1611,7 +1759,8 @@ static void clampGeloToActiveRange(void) {
 - (void)eloSlide:(UISlider *)s {
     int i = (int)roundf(s.value); s.value = i;
     NSInteger e = activeEloForIndex(i);
-    _eloValue.text = [NSString stringWithFormat:@"%ld%@", (long)e, (!gUseMaia && e > 1500) ? @" ⚠️" : @""];
+    _eloValue.text = [NSString stringWithFormat:@"%ld", (long)e];
+    s.accessibilityValue = [NSString stringWithFormat:@"%ld", (long)e];
     _eloTier.text = eloTierName(e);
 }
 - (void)eloDone:(UISlider *)s {
@@ -1619,10 +1768,10 @@ static void clampGeloToActiveRange(void) {
     savePrefs(); gLastFen = nil;
     dbg([NSString stringWithFormat:@"ELO set to %ld (%@)", (long)gElo, gUseMaia ? @"maia" : @"stockfish"]);
     if (!gUseMaia && gElo > 1500) {
-        UIAlertController *w = [UIAlertController alertControllerWithTitle:@"⚠️ Ban Risk"
-            message:@"Playing above ~1500 strength is much easier for Chess.com's fair-play system to detect and greatly increases your ban risk. Lower ELO is safer."
+        UIAlertController *w = [UIAlertController alertControllerWithTitle:@"Fair-play reminder"
+            message:@"High engine strength is intended for analysis and offline study. Do not use real-time assistance in rated or competitive games, or in any mode where engine assistance is prohibited."
             preferredStyle:UIAlertControllerStyleAlert];
-        [w addAction:[UIAlertAction actionWithTitle:@"I understand" style:UIAlertActionStyleDestructive handler:nil]];
+        [w addAction:[UIAlertAction actionWithTitle:@"Understood" style:UIAlertActionStyleDefault handler:nil]];
         [self.window.rootViewController presentViewController:w animated:YES completion:nil];
     }
 }
@@ -1644,6 +1793,16 @@ static void clampGeloToActiveRange(void) {
 - (void)swAnalysis:(UISwitch *)s { gTrackQuality = s.on; savePrefs(); if (!s.on) resetAccuracy(); [self populate]; }
 - (void)swLabels:(UISwitch *)s { gShowEvalLabels = s.on; savePrefs(); redrawArrows(); }
 - (void)swColor:(UISwitch *)s { gArrowEvalColor = s.on; savePrefs(); redrawArrows(); }
+- (void)speedSeg:(UISegmentedControl *)s {
+    gFastMode = (s.selectedSegmentIndex == 0);
+    savePrefs();
+    gLastFen = nil;
+    dbg([NSString stringWithFormat:@"search profile: %@", gFastMode ? @"Fast" : @"Deep"]);
+    [self populate];
+}
+- (void)gambitTap {
+    showGambitMenu();
+}
 - (void)engSeg:(UISegmentedControl *)s {
     gUseMaia = (s.selectedSegmentIndex == 1);
     clampGeloToActiveRange();
@@ -1734,8 +1893,8 @@ static void clampGeloToActiveRange(void) {
     gLastAutoPlayed = nil;
     savePrefs();
     resetAccuracy();
-    dbg(@"preset: preferred (ban-safe) applied");
-    showQualityToast(@"⚡ Ban-Safe Preset", CH_ACCENT);
+    dbg(@"preset: study defaults applied");
+    showQualityToast(@"⚡ Study Preset", CH_ACCENT);
     [self populate];
 }
 - (void)enableTap { gEnabled = !gEnabled; savePrefs(); if (!gEnabled) clearArrow(); [self populate]; }
@@ -2439,6 +2598,8 @@ static void fetchMove(NSString *fen) {
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
             MaiaGo([fen UTF8String], (int)gElo, (int)gElo, ^(MaiaResult r) {
                 NSString *bm = r.ok ? [NSString stringWithUTF8String:r.move] : nil;
+                NSString *bookMove = nextGambitBookMove();
+                if (bookMove.length) { bm = bookMove; dbg([NSString stringWithFormat:@"opening book move: %@", bookMove]); }
                 double rawWhite = r.whiteEval;
                 NSMutableArray *extras = [NSMutableArray array];
                 for (int i = 1; i < r.count && i < gArrowCount; i++) {
@@ -2462,7 +2623,7 @@ static void fetchMove(NSString *fen) {
         });
 
         if (gTrackQuality) {
-            NSInteger gdepth = MAX(14, eloToDepth(gElo));
+            NSInteger gdepth = gFastMode ? MIN(10, MAX(7, eloToDepth(gElo))) : MAX(12, eloToDepth(gElo));
             EngineGo([fen UTF8String], (int)gdepth, (int)gElo, 2,
                      ^(const EngineLine *lines, int count) {
                 BOOL hasScore = (count > 0) ? lines[0].hasScore : NO;
@@ -2488,18 +2649,20 @@ static void fetchMove(NSString *fen) {
     }
 
     NSInteger depth = eloToDepth(gElo);
+    if (gFastMode) depth = MIN(depth, 12);
     dbg([NSString stringWithFormat:@"fetch d%ld: %@", (long)depth,
          [fen substringToIndex:MIN(fen.length, 45)]]);
 
     int multipv = gTrackQuality ? MAX((int)gArrowCount, 2) : (int)gArrowCount;
-    if (gElo < 1600) multipv = MAX(multipv, 8);
-    else if (gElo < 2000) multipv = MAX(multipv, 4);
+    multipv = MIN(MAX(multipv, 1), 3);
     EngineGo([fen UTF8String], (int)depth, (int)gElo, multipv,
              ^(const EngineLine *lines, int count) {
 
         int pick = (count > 0) ? humanizedPickIndex(lines, count, (int)gElo) : 0;
         if (pick > 0) dbg([NSString stringWithFormat:@"humanized: played #%d of %d", pick + 1, count]);
         NSString *bm = (count > 0) ? [NSString stringWithUTF8String:lines[pick].move] : nil;
+        NSString *bookMove = nextGambitBookMove();
+        if (bookMove.length) { bm = bookMove; dbg([NSString stringWithFormat:@"opening book move: %@", bookMove]); }
         BOOL hasScore = (count > 0) ? lines[0].hasScore : NO;
         BOOL lmate = (count > 0) ? lines[0].isMate : NO;
         int  lscore = (count > 0) ? lines[0].score : 0;
@@ -3792,7 +3955,7 @@ static void installBoardHooks(void) {
     gLoadTime = [NSDate date];
     gOrigLayouts = [NSMutableDictionary dictionary];
     loadPrefs();
-    dbg(@"loaded v2.5.2 (SF18 + Maia3)");
+    dbg(@"loaded v2.6.0 (SF18 + Maia3 + Gambit Book)");
     EngineStart();
 
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{

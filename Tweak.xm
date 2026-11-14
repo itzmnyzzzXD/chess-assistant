@@ -903,8 +903,8 @@ static void showEloMenu(void) {
     for (NSUInteger i = 0; i < levels.count; i++) {
         NSInteger lvl = [levels[i] integerValue];
         [ac addAction:[UIAlertAction
-            actionWithTitle:[NSString stringWithFormat:@"%@%@%@", names[i],
-                             lvl > 1500 ? @" ⚠️" : @"", lvl == gElo ? @" ✓" : @""]
+            actionWithTitle:[NSString stringWithFormat:@"%@%@", names[i],
+                             lvl == gElo ? @" ✓" : @""]
             style:UIAlertActionStyleDefault
             handler:^(UIAlertAction *_) {
                 gElo = lvl;
@@ -913,9 +913,7 @@ static void showEloMenu(void) {
                 if (lvl > 1500) {
                     UIAlertController *w = [UIAlertController
                         alertControllerWithTitle:@"Fair-play reminder"
-                        message:@"Playing above ~1500 strength is much easier for Chess.com's "
-                                 "violates platform fair-play rules and can result in "
-                                 "account restrictions. Use the assistant only in study or other permitted settings."
+                        message:@"High engine settings are intended for analysis and offline study. Do not use real-time assistance in rated or competitive games, or in modes where it is prohibited."
                         preferredStyle:UIAlertControllerStyleAlert];
                     [w addAction:[UIAlertAction actionWithTitle:@"I understand"
                         style:UIAlertActionStyleDestructive

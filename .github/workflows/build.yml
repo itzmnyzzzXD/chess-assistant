@@ -75,4 +75,4 @@ jobs:
             --title "Chess Assistant (rolling build)" \
             --notes "Rolling dev build. Use the tagged release for a stable download." \
             --prerelease
-          gh release upload v2.5.2 "$DEB" --clobber || true
+          gh release upload v2.6.0 "$DEB" --clobber || true

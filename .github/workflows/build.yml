@@ -3,6 +3,8 @@ name: Build Chess Assistant
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
@@ -62,6 +64,7 @@ jobs:
           THEOS: ${{ github.workspace }}/theos
 
       - name: Publish .deb as release
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -70,6 +73,6 @@ jobs:
           gh release delete latest --yes --cleanup-tag || true
           gh release create latest "$DEB" \
             --title "Chess Assistant (rolling build)" \
-            --notes "Rolling dev build. Use the v2.5.2 release for the stable download." \
+            --notes "Rolling dev build. Use the tagged release for a stable download." \
             --prerelease
           gh release upload v2.5.2 "$DEB" --clobber || true

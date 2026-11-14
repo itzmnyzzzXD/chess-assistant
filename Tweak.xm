@@ -832,6 +832,12 @@ static void hideMenu(void) {
     [[UIApplication sharedApplication].delegate.window makeKeyWindow];
 }
 
+static void reopenSettings(void) {
+    hideMenu();
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{ showSettingsMenu(); });
+}
+
 static void showAC(UIAlertController *ac) {
     UIWindow *w = menuWin();
     w.hidden = NO;

@@ -891,7 +891,7 @@ static void redrawArrows(void) {
 static void showEloMenu(void) {
     UIAlertController *ac = [UIAlertController
         alertControllerWithTitle:@"Set ELO"
-        message:@"Higher = stronger but riskier. ⚠️ = above ~1500 (ban risk)."
+        message:@"Use high settings for analysis and offline study. Follow the fair-play rules of the platform you use."
         preferredStyle:UIAlertControllerStyleActionSheet];
 
     NSArray *levels = @[@400, @600, @800, @1000, @1200, @1400, @1600, @1800,
@@ -912,10 +912,10 @@ static void showEloMenu(void) {
                 dbg([NSString stringWithFormat:@"ELO set to %ld", (long)lvl]);
                 if (lvl > 1500) {
                     UIAlertController *w = [UIAlertController
-                        alertControllerWithTitle:@"⚠️ Ban Risk"
+                        alertControllerWithTitle:@"Fair-play reminder"
                         message:@"Playing above ~1500 strength is much easier for Chess.com's "
-                                 "fair-play system to detect and greatly increases your risk of "
-                                 "an account ban. Lower ELO is safer."
+                                 "violates platform fair-play rules and can result in "
+                                 "account restrictions. Use the assistant only in study or other permitted settings."
                         preferredStyle:UIAlertControllerStyleAlert];
                     [w addAction:[UIAlertAction actionWithTitle:@"I understand"
                         style:UIAlertActionStyleDestructive
@@ -1320,7 +1320,7 @@ static void clampGeloToActiveRange(void) {
     UILabel *l = [[UILabel alloc] init];
     l.text = t.uppercaseString;
     l.font = [UIFont systemFontOfSize:11 weight:UIFontWeightSemibold];
-    l.textColor = [UIColor colorWithWhite:1 alpha:0.45];
+    l.textColor = [UIColor colorWithWhite:0.76 alpha:1.0];
     NSMutableAttributedString *attr = [[NSMutableAttributedString alloc] initWithString:l.text attributes:@{
         NSFontAttributeName: l.font,
         NSForegroundColorAttributeName: l.textColor,
@@ -1373,7 +1373,7 @@ static void clampGeloToActiveRange(void) {
         s.selectedSegmentTintColor = CH_ACCENT;
         s.backgroundColor = [UIColor colorWithWhite:1 alpha:0.1];
         [s setTitleTextAttributes:@{NSForegroundColorAttributeName:UIColor.whiteColor} forState:UIControlStateNormal];
-        [s setTitleTextAttributes:@{NSForegroundColorAttributeName:UIColor.whiteColor} forState:UIControlStateSelected];
+        [s setTitleTextAttributes:@{NSForegroundColorAttributeName:[UIColor colorWithRed:0.08 green:0.11 blue:0.07 alpha:1.0]} forState:UIControlStateSelected];
     }
     [s setContentHuggingPriority:1000 forAxis:UILayoutConstraintAxisHorizontal];
 }
@@ -1381,6 +1381,13 @@ static void clampGeloToActiveRange(void) {
 - (UISwitch *)switchOn:(BOOL)on sel:(SEL)sel {
     UISwitch *sw = [[UISwitch alloc] init];
     sw.on = on; sw.onTintColor = CH_ACCENT;
+    if (sel == @selector(swEvalBar:)) sw.accessibilityLabel = @"Evaluation bar";
+    else if (sel == @selector(swAnalysis:)) sw.accessibilityLabel = @"Move analysis";
+    else if (sel == @selector(swLabels:)) sw.accessibilityLabel = @"Evaluation labels";
+    else if (sel == @selector(swColor:)) sw.accessibilityLabel = @"Color arrows by evaluation";
+    else if (sel == @selector(swAutoPlay:)) sw.accessibilityLabel = @"Automated move execution";
+    else if (sel == @selector(swAutoJitter:)) sw.accessibilityLabel = @"Vary move delay";
+    else if (sel == @selector(swAutoSecondBest:)) sw.accessibilityLabel = @"Allow second candidate move";
     [sw addTarget:self action:sel forControlEvents:UIControlEventValueChanged];
     return sw;
 }
@@ -1397,7 +1404,7 @@ static void clampGeloToActiveRange(void) {
 - (UIButton *)bigBtn:(NSString *)t color:(UIColor *)col sel:(SEL)sel {
     UIButton *b = [UIButton buttonWithType:UIButtonTypeSystem];
     [b setTitle:t forState:UIControlStateNormal];
-    [b setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
+    [b setTitleColor:[UIColor colorWithRed:0.07 green:0.10 blue:0.06 alpha:1.0] forState:UIControlStateNormal];
     b.titleLabel.font = [UIFont boldSystemFontOfSize:16];
     b.backgroundColor = col; b.layer.cornerRadius = 12;
     [b.heightAnchor constraintEqualToConstant:48].active = YES;
@@ -1534,6 +1541,7 @@ static void clampGeloToActiveRange(void) {
 
         UIButton *x = [UIButton buttonWithType:UIButtonTypeSystem];
         [x setTitle:@"✕" forState:UIControlStateNormal];
+        x.accessibilityLabel = @"Close settings";
         x.titleLabel.font = [UIFont systemFontOfSize:20];
         [x setTitleColor:[UIColor colorWithWhite:0.7 alpha:1] forState:UIControlStateNormal];
         [x addTarget:self action:@selector(closeTap) forControlEvents:UIControlEventTouchUpInside];
@@ -1571,6 +1579,8 @@ static void clampGeloToActiveRange(void) {
 
         UISegmentedControl *engSeg = [[UISegmentedControl alloc] initWithItems:@[@"SF18", @"MAIA"]];
         engSeg.selectedSegmentIndex = gUseMaia ? 1 : 0;
+        engSeg.accessibilityLabel = @"Analysis engine";
+        engSeg.accessibilityHint = @"Choose Stockfish 18 or Maia 3.";
         [self styleSeg:engSeg];
         [engSeg addTarget:self action:@selector(engSeg:) forControlEvents:UIControlEventValueChanged];
 
@@ -1582,6 +1592,8 @@ static void clampGeloToActiveRange(void) {
         [_eloValue setContentHuggingPriority:1000 forAxis:UILayoutConstraintAxisHorizontal];
         UISlider *elo = [[UISlider alloc] init];
         elo.minimumValue = 0; elo.maximumValue = eloCnt - 1; elo.value = activeEloNearestIndex(gElo);
+        elo.accessibilityLabel = @"Engine strength";
+        elo.accessibilityValue = [NSString stringWithFormat:@"%ld", (long)gElo];
         elo.minimumTrackTintColor = CH_ACCENT;
         [elo addTarget:self action:@selector(eloSlide:) forControlEvents:UIControlEventValueChanged];
         [elo addTarget:self action:@selector(eloDone:) forControlEvents:UIControlEventTouchUpInside | UIControlEventTouchUpOutside];
@@ -1591,6 +1603,8 @@ static void clampGeloToActiveRange(void) {
         eloHdr.axis = UILayoutConstraintAxisHorizontal; eloHdr.distribution = UIStackViewDistributionFill;
         UISegmentedControl *speedSeg = [[UISegmentedControl alloc] initWithItems:@[@"Fast", @"Deep"]];
         speedSeg.selectedSegmentIndex = gFastMode ? 0 : 1;
+        speedSeg.accessibilityLabel = @"Search profile";
+        speedSeg.accessibilityHint = @"Fast uses a capped search; Deep uses the full ELO-based depth.";
         [self styleSeg:speedSeg];
         [speedSeg addTarget:self action:@selector(speedSeg:) forControlEvents:UIControlEventValueChanged];
 
@@ -1608,10 +1622,12 @@ static void clampGeloToActiveRange(void) {
         gambitButton.titleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
         gambitButton.accessibilityLabel = @"Choose an opening gambit";
         gambitButton.accessibilityHint = @"Select an opening line to follow from the gambit repertoire.";
+        NSString *gambitDetail = selectedGambitEntry()[@"detail"] ?: @"";
         UIStackView *gambitCol = [[UIStackView alloc] initWithArrangedSubviews:@[
             gambitButton,
+            [self lbl:gambitDetail size:12 weight:UIFontWeightMedium color:[UIColor colorWithWhite:0.78 alpha:1]],
             [self lbl:@"The book continues only while the game follows the chosen move order."
-                 size:11 weight:UIFontWeightRegular color:[UIColor colorWithWhite:0.66 alpha:1]]]];
+                 size:11 weight:UIFontWeightRegular color:[UIColor colorWithWhite:0.70 alpha:1]]]];
         gambitCol.axis = UILayoutConstraintAxisVertical; gambitCol.spacing = 8;
         [_stack addArrangedSubview:[self group:gambitCol]];
 
@@ -1619,13 +1635,13 @@ static void clampGeloToActiveRange(void) {
         [_stack addArrangedSubview:[self sectionLabel:@"Display"]];
 
         UISegmentedControl *evalSeg = [[UISegmentedControl alloc] initWithItems:@[@"Centipawn", @"Win %"]];
-        evalSeg.selectedSegmentIndex = gShowWinPct ? 1 : 0; [self styleSeg:evalSeg];
+        evalSeg.selectedSegmentIndex = gShowWinPct ? 1 : 0; evalSeg.accessibilityLabel = @"Evaluation display"; [self styleSeg:evalSeg];
         [evalSeg addTarget:self action:@selector(evalSeg:) forControlEvents:UIControlEventValueChanged];
         UISegmentedControl *arrSeg = [[UISegmentedControl alloc] initWithItems:@[@"1", @"2", @"3"]];
-        arrSeg.selectedSegmentIndex = MIN(2, MAX(0, (int)gArrowCount - 1)); [self styleSeg:arrSeg];
+        arrSeg.selectedSegmentIndex = MIN(2, MAX(0, (int)gArrowCount - 1)); arrSeg.accessibilityLabel = @"Number of candidate arrows"; [self styleSeg:arrSeg];
         [arrSeg addTarget:self action:@selector(arrSeg:) forControlEvents:UIControlEventValueChanged];
         UISegmentedControl *thickSeg = [[UISegmentedControl alloc] initWithItems:@[@"Thin", @"Med", @"Thick"]];
-        thickSeg.selectedSegmentIndex = gArrowThick < 0.85 ? 0 : (gArrowThick > 1.2 ? 2 : 1); [self styleSeg:thickSeg];
+        thickSeg.selectedSegmentIndex = gArrowThick < 0.85 ? 0 : (gArrowThick > 1.2 ? 2 : 1); thickSeg.accessibilityLabel = @"Arrow thickness"; [self styleSeg:thickSeg];
         [thickSeg addTarget:self action:@selector(thickSeg:) forControlEvents:UIControlEventValueChanged];
 
         _opValue = [self lbl:[NSString stringWithFormat:@"%d%%", (int)round(gArrowAlpha * 100)]
@@ -1633,6 +1649,7 @@ static void clampGeloToActiveRange(void) {
         [_opValue setContentHuggingPriority:1000 forAxis:UILayoutConstraintAxisHorizontal];
         UISlider *op = [[UISlider alloc] init];
         op.minimumValue = 0.3; op.maximumValue = 1.0; op.value = gArrowAlpha; op.minimumTrackTintColor = CH_ACCENT;
+        op.accessibilityLabel = @"Arrow opacity";
         [op addTarget:self action:@selector(opSlide:) forControlEvents:UIControlEventValueChanged];
 
         UIStackView *grp = [[UIStackView alloc] initWithArrangedSubviews:@[
@@ -1665,6 +1682,7 @@ static void clampGeloToActiveRange(void) {
                              size:15 weight:UIFontWeightSemibold color:CH_ACCENT];
         [_apDelayValue setContentHuggingPriority:1000 forAxis:UILayoutConstraintAxisHorizontal];
         UISlider *apDelay = [[UISlider alloc] init];
+        apDelay.accessibilityLabel = @"Automated move delay";
         apDelay.minimumValue = 0.0; apDelay.maximumValue = 5.0;
         apDelay.value = gAutoPlayDelay; apDelay.minimumTrackTintColor = CH_ACCENT;
         [apDelay addTarget:self action:@selector(apDelaySlide:) forControlEvents:UIControlEventValueChanged];
@@ -1674,6 +1692,7 @@ static void clampGeloToActiveRange(void) {
                               size:15 weight:UIFontWeightSemibold color:CH_ACCENT];
         [_apJitterValue setContentHuggingPriority:1000 forAxis:UILayoutConstraintAxisHorizontal];
         UISlider *apJitter = [[UISlider alloc] init];
+        apJitter.accessibilityLabel = @"Move delay variation";
         apJitter.minimumValue = 0.0; apJitter.maximumValue = 2.0;
         apJitter.value = gAutoPlayJitterRange; apJitter.minimumTrackTintColor = CH_ACCENT;
         [apJitter addTarget:self action:@selector(apJitterSlide:) forControlEvents:UIControlEventValueChanged];
@@ -1683,6 +1702,7 @@ static void clampGeloToActiveRange(void) {
                      size:15 weight:UIFontWeightSemibold color:CH_ACCENT];
         [_apSecondPctValue setContentHuggingPriority:1000 forAxis:UILayoutConstraintAxisHorizontal];
         UISlider *apSecondPct = [[UISlider alloc] init];
+        apSecondPct.accessibilityLabel = @"Second candidate move probability";
         apSecondPct.minimumValue = 0.0; apSecondPct.maximumValue = 50.0;
         apSecondPct.value = gAutoPlaySecondBestPct; apSecondPct.minimumTrackTintColor = CH_ACCENT;
         [apSecondPct addTarget:self action:@selector(apSecondPctSlide:) forControlEvents:UIControlEventValueChanged];
@@ -1711,7 +1731,7 @@ static void clampGeloToActiveRange(void) {
         [_stack addArrangedSubview:[self bigBtn:(gEnabled ? @"Pause Assistant" : @"Enable Assistant")
                                           color:(gEnabled ? [UIColor systemRedColor] : CH_ACCENT)
                                             sel:@selector(enableTap)]];
-        UIButton *prefBtn = [self smallBtn:@"⚡ Preferred Settings (Ban-Safe)" sel:@selector(preferredTap)];
+        UIButton *prefBtn = [self smallBtn:@"⚡ Study Preset" sel:@selector(preferredTap)];
         prefBtn.backgroundColor = [CH_ACCENT colorWithAlphaComponent:0.25];
         [_stack addArrangedSubview:prefBtn];
         UIStackView *copyRow = [[UIStackView alloc] initWithArrangedSubviews:@[
@@ -1741,7 +1761,8 @@ static void clampGeloToActiveRange(void) {
 - (void)eloSlide:(UISlider *)s {
     int i = (int)roundf(s.value); s.value = i;
     NSInteger e = activeEloForIndex(i);
-    _eloValue.text = [NSString stringWithFormat:@"%ld%@", (long)e, (!gUseMaia && e > 1500) ? @" ⚠️" : @""];
+    _eloValue.text = [NSString stringWithFormat:@"%ld", (long)e];
+    s.accessibilityValue = [NSString stringWithFormat:@"%ld", (long)e];
     _eloTier.text = eloTierName(e);
 }
 - (void)eloDone:(UISlider *)s {
@@ -1749,10 +1770,10 @@ static void clampGeloToActiveRange(void) {
     savePrefs(); gLastFen = nil;
     dbg([NSString stringWithFormat:@"ELO set to %ld (%@)", (long)gElo, gUseMaia ? @"maia" : @"stockfish"]);
     if (!gUseMaia && gElo > 1500) {
-        UIAlertController *w = [UIAlertController alertControllerWithTitle:@"⚠️ Ban Risk"
-            message:@"Playing above ~1500 strength is much easier for Chess.com's fair-play system to detect and greatly increases your ban risk. Lower ELO is safer."
+        UIAlertController *w = [UIAlertController alertControllerWithTitle:@"Fair-play reminder"
+            message:@"High engine strength is intended for analysis and offline study. Do not use real-time assistance in rated or competitive games, or in any mode where engine assistance is prohibited."
             preferredStyle:UIAlertControllerStyleAlert];
-        [w addAction:[UIAlertAction actionWithTitle:@"I understand" style:UIAlertActionStyleDestructive handler:nil]];
+        [w addAction:[UIAlertAction actionWithTitle:@"Understood" style:UIAlertActionStyleDefault handler:nil]];
         [self.window.rootViewController presentViewController:w animated:YES completion:nil];
     }
 }
@@ -1874,8 +1895,8 @@ static void clampGeloToActiveRange(void) {
     gLastAutoPlayed = nil;
     savePrefs();
     resetAccuracy();
-    dbg(@"preset: preferred (ban-safe) applied");
-    showQualityToast(@"⚡ Ban-Safe Preset", CH_ACCENT);
+    dbg(@"preset: study defaults applied");
+    showQualityToast(@"⚡ Study Preset", CH_ACCENT);
     [self populate];
 }
 - (void)enableTap { gEnabled = !gEnabled; savePrefs(); if (!gEnabled) clearArrow(); [self populate]; }

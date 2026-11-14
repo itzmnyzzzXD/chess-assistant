@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   build:
-    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success')
+    if: github.event_name == 'workflow_dispatch' || ((github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch') && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success')
     runs-on: macos-latest
     env:
       IPA_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.ipa_url || 'https://www.dropbox.com/scl/fi/9844wpi100xd57x9ea3dr/com.chess.iphone-4.10.22-eeveedecrypter.ipa?rlkey=3n7cxwkaa2cafwf76b9mlz4j6&st=t4bpw7f5&dl=1' }}
